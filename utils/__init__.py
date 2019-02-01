@@ -126,7 +126,7 @@ def removeAll(type=None):
         bpy.ops.object.delete()
     else:
         # Remove all elements in scene
-        bpy.ops.object.select_by_layer()
+        bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.delete(use_global=False)
 
 
@@ -179,8 +179,7 @@ def renderToFolder(renderFolder='rendering', renderName='render', resX=800, resY
     scn.render.resolution_percentage = resPercentage
     if frame_end:
         scn.frame_end = frame_end
-
-    print(bpy.context.space_data)
+    print("hi")
 
     # Check if script is executed inside Blender
     if bpy.context.space_data is None:
