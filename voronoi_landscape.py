@@ -13,76 +13,43 @@ import utils
 def convert_hsv(hsv):
     return tuple(pow(val, 2.2) for val in colorsys.hsv_to_rgb(*hsv))
 
-
-def voronoi_landscape(n=1000, w=10, h=5):
-    # Create voronoi structure
-    points = np.random.normal(size=(n, 2))/4
-    vor = spatial.Voronoi(points)
-    verts, regions = vor.vertices, vor.regions
-
-    # Filter unused voronoi regions
-    regions = [region for region in regions
-                if not -1 in region and len(region) > 0]
-    regions = [region for region in regions
-                if np.all([np.linalg.norm(verts[i]) < 1.2 for i in region])]
-
-    # Create faces from voronoi regions
+def voronoi_landscape(n=50, w=10, h=5):
     bm = bmesh.new()
-    vDict, faces = {}, []
-    for region in regions:
-        for idx in region:
-            if not idx in vDict:
-                x, y, z = verts[idx, 0]*w, verts[idx, 1]*w, 0
-                vert = bm.verts.new((x, y, z))
-                vDict[idx] = vert
-
-        face = bm.faces.new(tuple(vDict[i] for i in region))
-        faces.append(face)
-
-    bmesh.ops.recalc_face_normals(bm, faces=faces)
-
-    # Extrude faces randomly
-    top_faces = []
-    for face in faces:
+    
+    w = 1
+    y = 1
+    z = 1
+    for x in range(0,10):
+        face = bm.faces.new([
+            bm.verts.new([x,0,0]),
+            bm.verts.new([x+1,0,0]),
+            bm.verts.new([x+1,1,0]),
+            bm.verts.new([x,1,0])
+        ])
+        
+        bmesh.ops.recalc_face_normals(bm, faces=[face])
         r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
+        
         f = r['faces'][0]
-        top_faces.append(f)
-        bmesh.ops.translate(bm, vec=Vector((0, 0, random()*h)), verts=f.verts)
-        center = f.calc_center_bounds()
-        bmesh.ops.scale(bm, vec=Vector((0.8, 0.8, 0.8)), verts=f.verts, space=Matrix.Translation(-center))
-
-    # Create list of random colors based on a range for each channel
-    #colorRange = [[0.7, 0.9], [0.7, 0.8], [0.8, 0.9]] # Pink
-    colorRange = [[0.5, 0.7], [0.7, 0.8], [0.8, 0.9]] # Blue
-    #colorRange = [[0.05, 0.15], [0.7, 0.8], [0.8, 0.9]] # Yellow
-    nColors = 20
-    colors = np.random.random((nColors, 3))
-    for i, r in zip(range(nColors), colorRange):
-        print(r)
-        colors[:, i] = (r[1] - r[0])*colors[:, i] + r[0]
-
-    # Assign material index to each bar
-    for face in top_faces:
-        idx = np.random.randint(len(colors))
-        face.material_index = idx
-        for edge in face.edges:
-            for f in edge.link_faces:
-                f.material_index = idx
-
-    # Create obj and mesh from bmesh object
+        
+        bmesh.ops.translate(bm, vec=Vector((0, 0, -np.random.randint(0, 10))), verts=f.verts)
+        
     me = bpy.data.meshes.new("VornoiMesh")
     bm.to_mesh(me)
     bm.free()
     obj = bpy.data.objects.new("Voronoi", me)
     bpy.context.scene.objects.link(obj)
     bpy.context.scene.update()
+        
+        #z = np.random.randint(-10,10)
+        #bpy.ops.mesh.primitive_cube_add(location=(x,y,z))
+        
+        #bmesh.ops.extrude_discrete_faces(bm, faces=[face])
+    
+    #bpy.ops.mesh.primitive_ico_sphere_add(location=(0, 0, 0))
 
-    # Create and assign materials to object
-    for color in colors:
-        mat = bpy.data.materials.new('Material')
-        mat.diffuse_color = convert_hsv(color)
-        mat.diffuse_intensity = 0.9
-        obj.data.materials.append(mat)
+    
+
 
 
 if __name__ == '__main__':
@@ -93,11 +60,14 @@ if __name__ == '__main__':
 
     # Create object
     voronoi_landscape()
+    
+    # Create lamps
+    utils.rainbowLights()
 
     # Create camera and lamp
     target = utils.target((0, 0, 3))
     utils.camera((-8, -12, 11), target, type='ORTHO', ortho_scale=5)
-    utils.lamp((10, -10, 10), target=target, type='SUN')
+    #utils.lamp((10, -10, 10), target=target, type='SUN')
 
     # Enable ambient occlusion
     utils.setAmbientOcclusion(samples=10)
