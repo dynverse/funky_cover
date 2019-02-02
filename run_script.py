@@ -3,7 +3,7 @@ import os
 import sys
 
 from multiprocessing import cpu_count
-cores_idle = 7
+cores_idle = 2
 cores_available = cpu_count()
 cores_enabled = max(1, cores_available - cores_idle)
 for scene in bpy.data.scenes:

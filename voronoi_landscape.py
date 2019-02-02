@@ -86,9 +86,23 @@ def geom_bar(bm, x, datum, h = 10, w = 4):
         bm.verts.new([x, datum * w, 0])
     ])
     
-    face = extrude_edge_upwards(bm, face, datum * h)
+    #face = extrude_edge_upwards(bm, face, datum * h)
+    face = extrude_face_upwards(bm, face, datum * h)
     
     return (face, w)
+
+def create_object(bm, x = 0, y = 0, z = 0):
+    me = bpy.data.meshes.new("VornoiMesh")
+    bm.to_mesh(me)
+    bm.free()
+    obj = bpy.data.objects.new("Voronoi", me)
+    bpy.context.scene.objects.link(obj)
+    bpy.context.scene.update()
+    
+    # move obj
+    obj.location = obj.location + Vector((x, y, z))
+    
+    return obj
 
 geoms = {
     "funkyrect": geom_funkyrect,
@@ -123,37 +137,8 @@ def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
                 for f in edge.link_faces:
                     f.material_index = idx
     
-    # create floor
-    x = len(data)
-    floor = bm.faces.new([
-        bm.verts.new([-0.5, 0, 0]),
-        bm.verts.new([x+0.5, 0, 0]),
-        bm.verts.new([x+0.5, width, 0]),
-        bm.verts.new([-0.5, width, 0])
-    ])
-    carpet = bm.faces.new([
-        bm.verts.new([x+0.5, 0, -100]),
-        bm.verts.new([x+0.5, 0, 0]),
-        bm.verts.new([x+0.5, width, 0]),
-        bm.verts.new([x+0.5, width, -100])
-    ])
-    curtain = bm.faces.new([
-        bm.verts.new([-0.5, 0, 100]),
-        bm.verts.new([-0.5, 0, 0]),
-        bm.verts.new([-0.5, width, 0]),
-        bm.verts.new([-0.5, width, 100])
-    ])
-    
     # create object
-    me = bpy.data.meshes.new("VornoiMesh")
-    bm.to_mesh(me)
-    bm.free()
-    obj = bpy.data.objects.new("Voronoi", me)
-    bpy.context.scene.objects.link(obj)
-    bpy.context.scene.update()
-    
-    # move obj
-    obj.location = obj.location + Vector((0, y, 0))
+    obj = create_object(bm, y = y)
 
     # Create and assign materials to object
     for color in colors:
@@ -163,6 +148,42 @@ def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
         obj.data.materials.append(mat)
         
     return width
+
+def draw_group(y_start, y_end, width, palette):
+    # create mesh
+    bm = bmesh.new()
+    
+    height = y_end - y_start
+    x = width
+    
+    floor = bm.faces.new([
+        bm.verts.new([-0.5, 0, 0]),
+        bm.verts.new([x+0.5, 0, 0]),
+        bm.verts.new([x+0.5, height, 0]),
+        bm.verts.new([-0.5, height, 0])
+    ])
+    carpet = bm.faces.new([
+        bm.verts.new([x+0.5, 0, -100]),
+        bm.verts.new([x+0.5, 0, 0]),
+        bm.verts.new([x+0.5, height, 0]),
+        bm.verts.new([x+0.5, height, -100])
+    ])
+    curtain = bm.faces.new([
+        bm.verts.new([-0.5, 0, 100]),
+        bm.verts.new([-0.5, 0, 0]),
+        bm.verts.new([-0.5, height, 0]),
+        bm.verts.new([-0.5, height, 100])
+    ])
+    
+    obj = create_object(bm, y = y_start)
+    
+    # add color
+    color = palette[np.int(np.floor(len(palette)/4))]
+    
+    mat = bpy.data.materials.new('Material')
+    mat.diffuse_color = color
+    mat.diffuse_intensity = 0.9
+    obj.data.materials.append(mat)
 
 def reset():
     # remove objects
@@ -180,13 +201,15 @@ if __name__ == '__main__':
     # Remove all elements
     reset()
     
-    current_group = ""
+    # print columns
+    w = data.shape[0] # width of data
     
-    y = -1
-    for i, column_info in columns_info.iterrows():
-        if column_info["group"] != current_group:
-            y += 1
-        
+    groups = []
+    current_group = None
+    current_group_y_start = 0
+    
+    y = 0
+    for i, column_info in columns_info.iterrows():        
         data_column = data[column_info["id"]]
         geom = geoms[column_info["geom"]]
         palette = palettes[column_info["palette"]]
@@ -194,12 +217,33 @@ if __name__ == '__main__':
         width = draw_column(data_column, y, colors = palette, geom = geom)
         y += width
         
+        # end of current group -> add to groups and augment y
+        if i == columns_info.shape[0]-1 or column_info["group"] != columns_info.group[i+1]:
+            groups.append({
+                "y_start": current_group_y_start, 
+                "y_end": y,
+                "id": current_group
+            })
+            y += 1
+            current_group_y_start = y
+        
         current_group = column_info["group"]
         
-    print(-y/2)
+    print(groups)
+    # plot groups
+    for group in groups:
+        group_info = columns_groups.ix[columns_groups.group == group["id"]].to_dict(orient = "records")[0]
+        
+        print(group_info)
+        
+        draw_group(
+            group["y_start"], 
+            group["y_end"], 
+            w, 
+            palettes[group_info["palette"]]
+        )
     
     # Create camera and lamp
-    w = data.shape[1]
     h = y
     
     target = utils.target((w/2, h/2, 5))
@@ -210,4 +254,4 @@ if __name__ == '__main__':
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    utils.renderToFolder('rendering', 'funky_cover', 2400, 3150)
+    utils.renderToFolder('rendering', 'funky_cover', 2400/4, 3150/4)
