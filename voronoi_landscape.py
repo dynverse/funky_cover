@@ -9,12 +9,14 @@ import utils
 
 import json
 
-palettes = json.load(open("data/palettes.json"))
-
+# load in dynbenchmark data
 columns_info = pd.read_csv("data/column_info.csv")
 columns_groups = pd.read_csv("data/column_groups.csv")
 
 data = pd.read_csv("data/data.csv")
+
+# define palettes
+palettes = json.load(open("data/palettes.json"))
 
 def hex_to_rgb(hex):
     h = hex.lstrip("#")
@@ -25,12 +27,7 @@ palettes = {
     for name, palette in palettes.items()
 }
 
-
-# Convert hsv values to gamma corrected rgb values
-# Based on: http://stackoverflow.com/questions/17910543/convert-gamma-rgb-curves-to-rgb-curves-with-no-gamma/
-def convert_hsv(hsv):
-    return tuple(pow(val, 2.2) for val in colorsys.hsv_to_rgb(*hsv))
-
+# define different geoms
 def extrude_upwards(bm, face, extrusion):
     bmesh.ops.recalc_face_normals(bm, faces=[face])
     r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
@@ -92,7 +89,8 @@ geoms = {
     "bar": geom_bar
 }
 
-def bars(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
+# draw a column
+def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
     bm = bmesh.new()
     
     top_faces = []
@@ -179,13 +177,13 @@ if __name__ == '__main__':
         geom = geoms[column_info["geom"]]
         palette = palettes[column_info["palette"]]
         
-        width = bars(data_column, y, colors = palette, geom = geom)
+        width = draw_column(data_column, y, colors = palette, geom = geom)
         y += width
         
         current_group = column_info["group"]
     
     # Create camera and lamp
-    target = utils.target((5, 8, 5))
+    target = utils.target((data.shape[1]/2, y/2, 5))
     utils.camera((-8, -12, 30), target, type='ORTHO', ortho_scale=20)
     utils.lamp((10, -10, 10), target=target, type='SUN')
 
