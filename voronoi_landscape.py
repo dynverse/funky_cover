@@ -28,11 +28,19 @@ palettes = {
 }
 
 # define different geoms
-def extrude_upwards(bm, face, extrusion):
+def extrude_face_upwards(bm, face, extrusion):
     bmesh.ops.recalc_face_normals(bm, faces=[face])
     r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
     f = r['faces'][0]
     bmesh.ops.translate(bm, vec=Vector((0, 0, extrusion)), verts=f.verts)
+    
+    return f
+
+def extrude_edge_upwards(bm, face, extrusion):
+    bmesh.ops.recalc_face_normals(bm, faces=[face])
+    r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
+    f = r['faces'][0]
+    bmesh.ops.translate(bm, vec=Vector((0, 0, extrusion)), verts=f.verts[-2:])
     
     return f
 
@@ -44,7 +52,7 @@ def geom_funkyrect(bm, x, datum, h = 10, w = 1):
         bm.verts.new([x - w * datum / 2 + 0.5, 0.5 + w * datum / 2,0])
     ])
     
-    face = extrude_upwards(bm, face, datum * h)
+    face = extrude_face_upwards(bm, face, datum * h)
     
     return (face, 1)
 
@@ -56,7 +64,7 @@ def geom_rect(bm, x, datum, h = 10, w = 1):
         bm.verts.new([x, 1,0])
     ])
     
-    face = extrude_upwards(bm, face, datum * h)
+    face = extrude_face_upwards(bm, face, datum * h)
     
     return (face, 1)
 
@@ -66,7 +74,7 @@ def geom_circle(bm, x, datum, h = 10, r = 0.5):
         for theta in np.arange(0, np.pi * 2, 0.05)
     ])
     
-    face = extrude_upwards(bm, face, datum * h)
+    face = extrude_face_upwards(bm, face, datum * h)
     
     return (face, 1)
 
@@ -77,8 +85,8 @@ def geom_bar(bm, x, datum, h = 10, w = 4):
         bm.verts.new([x + 1, datum * w, 0]),
         bm.verts.new([x, datum * w, 0])
     ])
-        
-    face = extrude_upwards(bm, face, datum * h)
+    
+    face = extrude_edge_upwards(bm, face, datum * h)
     
     return (face, w)
 
@@ -110,24 +118,30 @@ def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
     for face, datum in zip(top_faces, data):
         if face != "":
             idx = np.int(np.floor((len(colors)-1) * datum**2))
-            print(idx)
             face.material_index = idx
             for edge in face.edges:
                 for f in edge.link_faces:
                     f.material_index = idx
     
     # create floor
+    x = len(data)
     floor = bm.faces.new([
         bm.verts.new([-0.5, 0, 0]),
-        bm.verts.new([len(data)+0.5, 0, 0]),
-        bm.verts.new([len(data)+0.5, width, 0]),
+        bm.verts.new([x+0.5, 0, 0]),
+        bm.verts.new([x+0.5, width, 0]),
         bm.verts.new([-0.5, width, 0])
     ])
     carpet = bm.faces.new([
-        bm.verts.new([-0.5, 0, -100]),
+        bm.verts.new([x+0.5, 0, -100]),
+        bm.verts.new([x+0.5, 0, 0]),
+        bm.verts.new([x+0.5, width, 0]),
+        bm.verts.new([x+0.5, width, -100])
+    ])
+    curtain = bm.faces.new([
+        bm.verts.new([-0.5, 0, 100]),
         bm.verts.new([-0.5, 0, 0]),
         bm.verts.new([-0.5, width, 0]),
-        bm.verts.new([-0.5, width, -100])
+        bm.verts.new([-0.5, width, 100])
     ])
     
     # create object
@@ -153,11 +167,11 @@ def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
 def reset():
     # remove objects
     bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.delete(use_global=False)
+    bpy.ops.object.delete(use_global=True)
     
     # remove materials
     for material in bpy.data.materials:
-        material.user_clear()
+        #material.user_clear()
         bpy.data.materials.remove(material)
 
 if __name__ == '__main__':
@@ -181,17 +195,19 @@ if __name__ == '__main__':
         y += width
         
         current_group = column_info["group"]
+        
+    print(-y/2)
     
     # Create camera and lamp
-    target = utils.target((data.shape[1]/2, y/2, 5))
-    utils.camera((-8, -12, 30), target, type='ORTHO', ortho_scale=20)
-    utils.lamp((10, -10, 10), target=target, type='SUN')
+    w = data.shape[1]
+    h = y
+    
+    target = utils.target((w/2, h/2, 5))
+    utils.lamp((w + 10, h + 10, 20), target=target, type='SUN')
+    utils.camera((w + w/2, h/2+h/4, 50), target = target, type='ORTHO', ortho_scale=y)
 
     # Enable ambient occlusion
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    
-    import os
-    print(os.getcwd())
-    utils.renderToFolder('rendering', 'funky_cover', 500, 500)
+    utils.renderToFolder('rendering', 'funky_cover', 2400, 3150)

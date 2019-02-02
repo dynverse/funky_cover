@@ -2,6 +2,15 @@ import bpy
 import os
 import sys
 
+from multiprocessing import cpu_count
+cores_idle = 7
+cores_available = cpu_count()
+cores_enabled = max(1, cores_available - cores_idle)
+for scene in bpy.data.scenes:
+    scene.render.threads_mode = 'FIXED'
+    scene.render.threads = cores_enabled
+
+
 # Specify the script to be executed
 scriptFile = "voronoi_landscape.py"
 
