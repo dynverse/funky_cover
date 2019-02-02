@@ -5,11 +5,8 @@ import sys
 # Specify the script to be executed
 scriptFile = "voronoi_landscape.py"
 
-# Check if script is executed in Blender and get absolute path of current folder
-if bpy.context.space_data is not None:
-    filesDir = os.path.dirname(bpy.context.space_data.text.filepath)
-else:
-    filesDir = os.path.dirname(os.path.abspath(__file__))
+# Get absolute path to current folder
+filesDir = os.path.dirname(os.path.abspath(__file__.replace("funky_cover.blend/", "")))
 
 # Get scripts folder and add it to the search path for modules
 cwd = filesDir

@@ -1,7 +1,7 @@
 import bpy
 import bmesh
 import numpy as np
-import scipy.spatial as spatial
+import pandas as pd
 from random import random
 from mathutils import Vector, Matrix
 import colorsys
@@ -10,6 +10,11 @@ import utils
 import json
 
 palettes = json.load(open("data/palettes.json"))
+
+columns_info = pd.read_csv("data/column_info.csv")
+columns_groups = pd.read_csv("data/column_groups.csv")
+
+data = pd.read_csv("data/data.csv")
 
 def hex_to_rgb(hex):
     h = hex.lstrip("#")
@@ -26,65 +31,105 @@ palettes = {
 def convert_hsv(hsv):
     return tuple(pow(val, 2.2) for val in colorsys.hsv_to_rgb(*hsv))
 
-def face_rect(bm, x, z, w = 1):
-    face = bm.faces.new([
-        bm.verts.new([x - w * z / 2 + 0.5, 0.5 - w * z / 2,0]),
-        bm.verts.new([x + w * z / 2 + 0.5, 0.5 - w * z / 2,0]),
-        bm.verts.new([x + w * z / 2 + 0.5, 0.5 + w * z / 2,0]),
-        bm.verts.new([x - w * z / 2 + 0.5, 0.5 + w * z / 2,0])
-    ])
-    return face
+def extrude_upwards(bm, face, extrusion):
+    bmesh.ops.recalc_face_normals(bm, faces=[face])
+    r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
+    f = r['faces'][0]
+    bmesh.ops.translate(bm, vec=Vector((0, 0, extrusion)), verts=f.verts)
+    
+    return f
 
-def face_circle(bm, x, z, r = 0.5):
+def geom_funkyrect(bm, x, datum, h = 10, w = 1):
     face = bm.faces.new([
-        bm.verts.new([x + np.cos(theta) * r * z + r, 0 + np.sin(theta) * r * z + r, 0])
+        bm.verts.new([x - w * datum / 2 + 0.5, 0.5 - w * datum / 2,0]),
+        bm.verts.new([x + w * datum / 2 + 0.5, 0.5 - w * datum / 2,0]),
+        bm.verts.new([x + w * datum / 2 + 0.5, 0.5 + w * datum / 2,0]),
+        bm.verts.new([x - w * datum / 2 + 0.5, 0.5 + w * datum / 2,0])
+    ])
+    
+    face = extrude_upwards(bm, face, datum * h)
+    
+    return (face, 1)
+
+def geom_rect(bm, x, datum, h = 10, w = 1):
+    face = bm.faces.new([
+        bm.verts.new([x, 0, 0]),
+        bm.verts.new([x + 1, 0, 0]),
+        bm.verts.new([x + 1, 1,0]),
+        bm.verts.new([x, 1,0])
+    ])
+    
+    face = extrude_upwards(bm, face, datum * h)
+    
+    return (face, 1)
+
+def geom_circle(bm, x, datum, h = 10, r = 0.5):
+    face = bm.faces.new([
+        bm.verts.new([x + np.cos(theta) * r * datum + r, 0 + np.sin(theta) * r * datum + r, 0])
         for theta in np.arange(0, np.pi * 2, 0.05)
     ])
-    return face
+    
+    face = extrude_upwards(bm, face, datum * h)
+    
+    return (face, 1)
 
-def bars(y = 1, colors = palettes["benchmark"], geom = face_rect):
+def geom_bar(bm, x, datum, h = 10, w = 4):
+    face = bm.faces.new([
+        bm.verts.new([x, 0, 0]),
+        bm.verts.new([x + 1, 0, 0]),
+        bm.verts.new([x + 1, datum * w, 0]),
+        bm.verts.new([x, datum * w, 0])
+    ])
+        
+    face = extrude_upwards(bm, face, datum * h)
+    
+    return (face, w)
+
+geoms = {
+    "funkyrect": geom_funkyrect,
+    "rect": geom_rect,
+    "circle": geom_circle,
+    "bar": geom_bar
+}
+
+def bars(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
     bm = bmesh.new()
     
     top_faces = []
     
-    data = [np.random.random() for i in range(20)]
-    
     # create meshes
-    w = 1
-    h = 10
     for x, datum in enumerate(data):
-        # ground face
-        face = geom(bm, x, datum)
-        
-        # extrude
-        bmesh.ops.recalc_face_normals(bm, faces=[face])
-        r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
-        f = r['faces'][0]
-        bmesh.ops.translate(bm, vec=Vector((0, 0, datum*h)), verts=f.verts)
-        
-        top_faces.append(f)
+        if not np.isnan(datum):
+            # ground face
+            face, width = geom(bm, x, datum)
+            
+            # extrude
+            top_faces.append(face)
+        else:
+            top_faces.append("")
 
     # Assign material index to each bar
     for face, datum in zip(top_faces, data):
-        idx = np.int(np.floor(len(colors) * datum**2))
-        print(idx)
-        face.material_index = idx
-        for edge in face.edges:
-            for f in edge.link_faces:
-                f.material_index = idx
+        if face != "":
+            idx = np.int(np.floor((len(colors)-1) * datum**2))
+            print(idx)
+            face.material_index = idx
+            for edge in face.edges:
+                for f in edge.link_faces:
+                    f.material_index = idx
     
     # create floor
     floor = bm.faces.new([
         bm.verts.new([-0.5, 0, 0]),
         bm.verts.new([len(data)+0.5, 0, 0]),
-        bm.verts.new([len(data)+0.5, 1, 0]),
-        bm.verts.new([-0.5, 1, 0])
+        bm.verts.new([len(data)+0.5, width, 0]),
+        bm.verts.new([-0.5, width, 0])
     ])
     carpet = bm.faces.new([
         bm.verts.new([-0.5, 0, -100]),
         bm.verts.new([-0.5, 0, 0]),
-        bm.verts.new([-0.5, 1, 0]),
-        bm.verts.new([-0.5, 1, -100])
+        bm.verts.new([-0.5, width, 0]),
+        bm.verts.new([-0.5, width, -100])
     ])
     
     # create object
@@ -104,8 +149,15 @@ def bars(y = 1, colors = palettes["benchmark"], geom = face_rect):
         mat.diffuse_color = color
         mat.diffuse_intensity = 0.9
         obj.data.materials.append(mat)
+        
+    return width
 
 def reset():
+    # remove objects
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete(use_global=False)
+    
+    # remove materials
     for material in bpy.data.materials:
         material.user_clear()
         bpy.data.materials.remove(material)
@@ -114,32 +166,23 @@ if __name__ == '__main__':
     print(__file__)
 
     # Remove all elements
-    utils.removeAll()
     reset()
-
-    # Create object
-    y = 0
-    for i in range(4):
-        y += 1
-        bars(y, geom = face_circle)
-        
-    y += 1
-    for i in range(3):
-        y += 1
-        bars(y, colors = palettes["stability"], geom = face_rect)
-        
-    y += 1
-    for i in range(4):
-        y += 1
-        bars(y, colors = palettes["qc"], geom = face_rect)
-        
-    y += 1
-    for i in range(5):
-        y += 1
-        bars(y, colors = palettes["scaling"], geom = face_circle)
     
-    # Create lamps
-    #utils.rainbowLights()
+    current_group = ""
+    
+    y = -1
+    for i, column_info in columns_info.iterrows():
+        if column_info["group"] != current_group:
+            y += 1
+        
+        data_column = data[column_info["id"]]
+        geom = geoms[column_info["geom"]]
+        palette = palettes[column_info["palette"]]
+        
+        width = bars(data_column, y, colors = palette, geom = geom)
+        y += width
+        
+        current_group = column_info["group"]
     
     # Create camera and lamp
     target = utils.target((5, 8, 5))
@@ -150,6 +193,7 @@ if __name__ == '__main__':
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
+    
     import os
     print(os.getcwd())
-    utils.renderToFolder('rendering', 'vornoi_landscape', 500, 500)
+    utils.renderToFolder('rendering', 'funky_cover', 500, 500)
