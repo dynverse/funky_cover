@@ -10,8 +10,12 @@ import utils
 import json
 
 # load in dynbenchmark data
-columns_info = pd.read_csv("data/column_info.csv")
-columns_groups = pd.read_csv("data/column_groups.csv")
+column_infos = pd.read_csv("data/column_infos.csv")
+group_infos = pd.read_csv("data/group_infos.csv")
+experiment_infos = pd.read_csv("data/experiment_infos.csv")
+#group_infos = experiment_infos
+row_infos = pd.read_csv("data/row_infos.csv")
+rowgroup_infos = pd.read_csv("data/rowgroup_infos.csv")
 
 data = pd.read_csv("data/data.csv")
 
@@ -44,33 +48,33 @@ def extrude_edge_upwards(bm, face, extrusion):
     
     return f
 
-def geom_funkyrect(bm, x, datum, h = 10, w = 1):
+def geom_funkyrect(bm, y, z, datum, h = 10, w = 1):
     face = bm.faces.new([
-        bm.verts.new([x - w * datum / 2 + 0.5, 0.5 - w * datum / 2,0]),
-        bm.verts.new([x + w * datum / 2 + 0.5, 0.5 - w * datum / 2,0]),
-        bm.verts.new([x + w * datum / 2 + 0.5, 0.5 + w * datum / 2,0]),
-        bm.verts.new([x - w * datum / 2 + 0.5, 0.5 + w * datum / 2,0])
+        bm.verts.new([-w * datum / 2 + 0.5, y + 0.5 - w * datum / 2,z]),
+        bm.verts.new([+w * datum / 2 + 0.5, y + 0.5 - w * datum / 2,z]),
+        bm.verts.new([+w * datum / 2 + 0.5, y + 0.5 + w * datum / 2,z]),
+        bm.verts.new([-w * datum / 2 + 0.5, y + 0.5 + w * datum / 2,z])
     ])
     
     face = extrude_face_upwards(bm, face, datum * h)
     
     return (face, 1)
 
-def geom_rect(bm, x, datum, h = 10, w = 1):
+def geom_rect(bm, y, z, datum, h = 10, w = 1):
     face = bm.faces.new([
-        bm.verts.new([x, 0, 0]),
-        bm.verts.new([x + 1, 0, 0]),
-        bm.verts.new([x + 1, 1,0]),
-        bm.verts.new([x, 1,0])
+        bm.verts.new([0, y+0, z]),
+        bm.verts.new([1, y+0, z]),
+        bm.verts.new([1, y+1, z]),
+        bm.verts.new([0, y+1, z])
     ])
     
     face = extrude_face_upwards(bm, face, datum * h)
     
     return (face, 1)
 
-def geom_circle(bm, x, datum, h = 10, r = 0.5):
+def geom_circle(bm, y, z, datum, h = 10, r = 0.5):
     face = bm.faces.new([
-        bm.verts.new([x + np.cos(theta) * r * datum + r, 0 + np.sin(theta) * r * datum + r, 0])
+        bm.verts.new([x + np.cos(theta) * r * datum + r, 0 + np.sin(theta) * r * datum + r, z])
         for theta in np.arange(0, np.pi * 2, 0.05)
     ])
     
@@ -78,12 +82,12 @@ def geom_circle(bm, x, datum, h = 10, r = 0.5):
     
     return (face, 1)
 
-def geom_bar(bm, x, datum, h = 10, w = 4):
+def geom_bar(bm, y, z, datum, h = 10, w = 4):
     face = bm.faces.new([
-        bm.verts.new([x, 0, 0]),
-        bm.verts.new([x + 1, 0, 0]),
-        bm.verts.new([x + 1, datum * w, 0]),
-        bm.verts.new([x, datum * w, 0])
+        bm.verts.new([0, y, z]),
+        bm.verts.new([0, y + 1, z]),
+        bm.verts.new([datum * w, y + 1, z]),
+        bm.verts.new([datum * w, y, z])
     ])
     
     #face = extrude_edge_upwards(bm, face, datum * h)
@@ -97,7 +101,6 @@ def create_object(bm, x = 0, y = 0, z = 0):
     bm.free()
     obj = bpy.data.objects.new("Voronoi", me)
     bpy.context.scene.objects.link(obj)
-    bpy.context.scene.update()
     
     # move obj
     obj.location = obj.location + Vector((x, y, z))
@@ -112,16 +115,18 @@ geoms = {
 }
 
 # draw a column
-def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
+def draw_column(data, row_infos, x = 1, colors = palettes["benchmark"], geom = geom_rect):
     bm = bmesh.new()
     
     top_faces = []
     
     # create meshes
-    for x, datum in enumerate(data):
+    for (i, row_info), datum in zip(row_infos.iterrows(), data):
+        y = row_info["y"]
+        z = row_info["z"]
         if not np.isnan(datum):
             # ground face
-            face, width = geom(bm, x, datum)
+            face, width = geom(bm, y, z, datum + 0.001)
             
             # extrude
             top_faces.append(face)
@@ -138,7 +143,7 @@ def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
                     f.material_index = idx
     
     # create object
-    obj = create_object(bm, y = y)
+    obj = create_object(bm, x = x)
 
     # Create and assign materials to object
     for color in colors:
@@ -149,33 +154,55 @@ def draw_column(data, y = 1, colors = palettes["benchmark"], geom = geom_rect):
         
     return width
 
-def draw_group(y_start, y_end, width, palette):
+def draw_group(x, rowgroup_infos, width, height, palette):
     # create mesh
     bm = bmesh.new()
     
-    height = y_end - y_start
-    x = width
-    
-    floor = bm.faces.new([
-        bm.verts.new([-0.5, 0, 0]),
-        bm.verts.new([x+0.5, 0, 0]),
-        bm.verts.new([x+0.5, height, 0]),
-        bm.verts.new([-0.5, height, 0])
-    ])
+    # carpet
+    z = rowgroup_infos["z"].iloc[0]
+    y = - 0.5
     carpet = bm.faces.new([
-        bm.verts.new([x+0.5, 0, -100]),
-        bm.verts.new([x+0.5, 0, 0]),
-        bm.verts.new([x+0.5, height, 0]),
-        bm.verts.new([x+0.5, height, -100])
-    ])
-    curtain = bm.faces.new([
-        bm.verts.new([-0.5, 0, 100]),
-        bm.verts.new([-0.5, 0, 0]),
-        bm.verts.new([-0.5, height, 0]),
-        bm.verts.new([-0.5, height, 100])
+        bm.verts.new([0, y, z]),
+        bm.verts.new([width, y, z]),
+        bm.verts.new([width, y, -100]),
+        bm.verts.new([0, y, -100])
     ])
     
-    obj = create_object(bm, y = y_start)
+    # floors for each group
+    for i, rowgroup_info in rowgroup_infos.iterrows():
+        y_start = rowgroup_info["y"]-0.5
+        y_end = rowgroup_info["y"]+rowgroup_info["height"]+0.5
+        z = rowgroup_info["z"]
+        floor = bm.faces.new([
+            bm.verts.new([0, y_start, z]),
+            bm.verts.new([width, y_start, z]),
+            bm.verts.new([width, y_end, z]),
+            bm.verts.new([0, y_end, z])
+        ])
+        
+    # connections between each group
+    for ((i, rowgroup_info), (j, rowgroup_info2)) in zip(rowgroup_infos.iloc[:-1].iterrows(), rowgroup_infos.iloc[1:].iterrows()):
+        y = rowgroup_info2["y"]-0.5
+        z_start = rowgroup_info["z"]
+        z_end = rowgroup_info2["z"]
+        floor = bm.faces.new([
+            bm.verts.new([0, y, z_start]),
+            bm.verts.new([width, y, z_start]),
+            bm.verts.new([width, y, z_end]),
+            bm.verts.new([0, y, z_end])
+        ])
+        
+    # curtain
+    z = rowgroup_infos["z"].iloc[-1]
+    y = rowgroup_infos["y"].iloc[-1] + rowgroup_infos["height"].iloc[-1] + 0.5
+    curtain = bm.faces.new([
+        bm.verts.new([0, y, z]),
+        bm.verts.new([width, y, z]),
+        bm.verts.new([width, y, 100]),
+        bm.verts.new([0, y, 100])
+    ])
+    
+    obj = create_object(bm, x = x)
     
     # add color
     color = palette[np.int(np.floor(len(palette)/4))]
@@ -192,8 +219,9 @@ def reset():
     
     # remove materials
     for material in bpy.data.materials:
+        ""
         #material.user_clear()
-        bpy.data.materials.remove(material)
+        #bpy.data.materials.remove(material)
 
 if __name__ == '__main__':
     print(__file__)
@@ -202,56 +230,39 @@ if __name__ == '__main__':
     reset()
     
     # print columns
-    w = data.shape[0] # width of data
+    w = column_infos.x.iloc[-1] + column_infos.width.iloc[-1] # width of data
+    h = data.shape[0]
+    d = rowgroup_infos.z.iloc[-1]
     
-    groups = []
-    current_group = None
-    current_group_y_start = 0
-    
-    y = 0
-    for i, column_info in columns_info.iterrows():        
+    for i, column_info in column_infos.iterrows():        
         data_column = data[column_info["id"]]
         geom = geoms[column_info["geom"]]
         palette = palettes[column_info["palette"]]
+        x = column_info["x"]
+        width = column_info["width"]
         
-        width = draw_column(data_column, y, colors = palette, geom = geom)
-        y += width
-        
-        # end of current group -> add to groups and augment y
-        if i == columns_info.shape[0]-1 or column_info["group"] != columns_info.group[i+1]:
-            groups.append({
-                "y_start": current_group_y_start, 
-                "y_end": y,
-                "id": current_group
-            })
-            y += 1
-            current_group_y_start = y
-        
-        current_group = column_info["group"]
-        
-    print(groups)
+        draw_column(data_column, row_infos, x, colors = palette, geom = geom)
+    
     # plot groups
-    for group in groups:
-        group_info = columns_groups.ix[columns_groups.group == group["id"]].to_dict(orient = "records")[0]
-        
-        print(group_info)
-        
+    for i, group_info in group_infos.iterrows():
         draw_group(
-            group["y_start"], 
-            group["y_end"], 
-            w, 
+            group_info["x"], 
+            rowgroup_infos,
+            group_info["width"], 
+            h, 
             palettes[group_info["palette"]]
         )
     
     # Create camera and lamp
-    h = y
+    target = utils.target((w/2, h/2, d*3/4))
+    utils.lamp((w + 10, -20, 50), target=target, type='SUN')
+    utils.camera((3/4 * w, -1/2 * h, 50), target = target, type='ORTHO', ortho_scale=w*1.5)
     
-    target = utils.target((w/2, h/2, 5))
-    utils.lamp((w + 10, h + 10, 20), target=target, type='SUN')
-    utils.camera((w + w/2, h/2+h/4, 50), target = target, type='ORTHO', ortho_scale=y)
+    # update scene
+    bpy.context.scene.update()
 
     # Enable ambient occlusion
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    utils.renderToFolder('rendering', 'funky_cover', 2400/4, 3150/4)
+    utils.renderToFolder('rendering', 'funky_cover', 2400/3, 3150/3)

@@ -1,0 +1,4 @@
+group,y,z,height
+tree,0,0,7
+graph,8,5,1
+disconnected_graph,10,10,2

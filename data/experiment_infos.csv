@@ -1,0 +1,6 @@
+experiment,width,x,palette
+Summary,20,0,overall
+Accuracy,21,21,benchmark
+Scalability,11,43,scaling
+Stability,4,55,stability
+Usability,6,60,qc

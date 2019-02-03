@@ -1,0 +1,11 @@
+id,group,padding,height,y,z
+paga,disconnected_graph,0,1,11,10
+raceid_stemid,disconnected_graph,0,1,10,10
+slicer,graph,1,1,8,5
+slingshot,tree,1,1,6,0
+mst,tree,0,1,5,0
+pcreode,tree,0,1,4,0
+scuba,tree,0,1,3,0
+monocle_ddrtree,tree,0,1,2,0
+monocle_ica,tree,0,1,1,0
+celltree_maptpx,tree,0,1,0,0

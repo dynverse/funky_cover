@@ -1,0 +1,13 @@
+group,width,x,Category,palette,experiment
+score_overall,20,0,Aggregated scores per experiment,overall,Summary
+benchmark_metric,4,21,Per metric,benchmark,Accuracy
+benchmark_source,6,26,Per dataset source,benchmark,Accuracy
+benchmark_trajtype,9,33,Per trajectory type,benchmark,Accuracy
+scaling_predtime,5,43,"Predicted time
+(#cells × #features)",scaling,Scalability
+scaling_predmem,5,49,"Predicted memory
+(#cells × #features)",scaling,Scalability
+stability,4,55,"Similarity
+between runs",stability,Stability
+qc_category,6,60,"Quality of
+software and paper",qc,Usability
