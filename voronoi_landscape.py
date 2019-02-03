@@ -333,10 +333,18 @@ if __name__ == '__main__':
         draw_experiment_label(experiment_info)
 
     
-    # Create camera and lamp
-    target = utils.target((w/2, h/2, d*3.4/4))
+    # Create lamp
+    target = utils.target((2/3 * w, h/2, d*3.4/4))
     utils.lamp((w + 10, -20, 50), target=target, type='SUN')
+
+    # Choose either camera
+    # orthographic camera
+    target = utils.target((w/2, h/2, d*3.4/4))
     utils.camera((3/4 * w, -30, 50), target = target, type='ORTHO', ortho_scale=w*1.5)
+    
+    # perspective camera
+    # target = utils.target((w/2, h/2, d*1/2))
+    # utils.camera((6/10 * w, -30, 50), target = target, lens = 20)
     
     # update scene
     bpy.context.scene.update()
@@ -345,4 +353,4 @@ if __name__ == '__main__':
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    utils.renderToFolder('rendering', 'funky_cover', 2400/1.5, 3150/1.5)
+    utils.renderToFolder('rendering', 'funky_cover', 2400/3, 3150/3)
