@@ -1,4 +1,8 @@
 group,y,z,height
-tree,0,0,7
-graph,8,5,1
-disconnected_graph,10,10,2
+cycle,0,0,3
+linear,4,5,15
+bifurcation,20,10,2
+multifurcation,23,15,6
+tree,30,20,18
+graph,49,25,1
+disconnected_graph,51,30,2

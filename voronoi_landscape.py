@@ -96,10 +96,10 @@ def geom_bar(bm, y, z, datum, h = 10, w = 4):
     return (face, w)
 
 def create_object(bm, x = 0, y = 0, z = 0):
-    me = bpy.data.meshes.new("VornoiMesh")
+    me = bpy.data.meshes.new("ColumnMesh")
     bm.to_mesh(me)
     bm.free()
-    obj = bpy.data.objects.new("Voronoi", me)
+    obj = bpy.data.objects.new("Column", me)
     bpy.context.scene.objects.link(obj)
     
     # move obj
@@ -115,7 +115,9 @@ geoms = {
 }
 
 # draw a column
-def draw_column(data, row_infos, x = 1, colors = palettes["benchmark"], geom = geom_rect):
+def draw_column(data, row_infos, x = 1, palette = "benchmark", geom = geom_rect):
+    colors = palettes[palette]
+    
     bm = bmesh.new()
     
     top_faces = []
@@ -136,7 +138,11 @@ def draw_column(data, row_infos, x = 1, colors = palettes["benchmark"], geom = g
     # Assign material index to each bar
     for face, datum in zip(top_faces, data):
         if face != "":
-            idx = np.int(np.floor((len(colors)-1) * datum**2))
+            if palette == "benchmark":
+                modifier = 1
+            else:
+                modifier = 0.5
+            idx = np.int(np.floor((len(colors)-1) * (datum**2)*modifier))
             face.material_index = idx
             for edge in face.edges:
                 for f in edge.link_faces:
@@ -209,8 +215,43 @@ def draw_group(x, rowgroup_infos, width, height, palette):
     
     mat = bpy.data.materials.new('Material')
     mat.diffuse_color = color
-    mat.diffuse_intensity = 0.9
+    mat.diffuse_intensity = 0.4
     obj.data.materials.append(mat)
+    
+def draw_experiment_label(experiment_info):
+    x = experiment_info["x"] + experiment_info["width"]/2
+    y = -1
+    z = -1
+    width = experiment_info["width"]
+    depth = 1
+    
+    # draw text
+    bpy.ops.object.text_add()
+    obj = bpy.context.object
+    obj.data.body = experiment_info["experiment"]
+    obj.data.align_x = "CENTER"
+    obj.location = Vector((x, y-0.5, z))
+    obj.rotation_euler = Vector((np.pi/2, 0, 0))
+    
+    # draw box
+    bm = bmesh.new()
+    bm.faces.new([
+        bm.verts.new([x - width/2, y, z - depth/2]),
+        bm.verts.new([x + width/2, y, z - depth/2]),
+        bm.verts.new([x + width/2, y, z + depth/2]),
+        bm.verts.new([x - width/2, y, z + depth/2])
+    ])
+    
+    obj = create_object(bm)
+    
+    color = [0,0,0]
+    
+    mat = bpy.data.materials.new('Material')
+    mat.diffuse_color = color
+    mat.diffuse_intensity = 0.4
+    obj.data.materials.append(mat)
+    
+    return obj
 
 def reset():
     # remove objects
@@ -234,17 +275,19 @@ if __name__ == '__main__':
     h = data.shape[0]
     d = rowgroup_infos.z.iloc[-1]
     
-    for i, column_info in column_infos.iterrows():        
+    for i, column_info in column_infos.iterrows(): 
+        ""       
         data_column = data[column_info["id"]]
         geom = geoms[column_info["geom"]]
-        palette = palettes[column_info["palette"]]
+        palette = column_info["palette"]
         x = column_info["x"]
         width = column_info["width"]
         
-        draw_column(data_column, row_infos, x, colors = palette, geom = geom)
+        draw_column(data_column, row_infos, x, palette = palette, geom = geom)
     
     # plot groups
     for i, group_info in group_infos.iterrows():
+        ""
         draw_group(
             group_info["x"], 
             rowgroup_infos,
@@ -253,10 +296,16 @@ if __name__ == '__main__':
             palettes[group_info["palette"]]
         )
     
+    # plot experiment labels
+    for i, experiment_info in experiment_infos.iterrows():
+        ""
+        #draw_experiment_label(experiment_info)
+
+    
     # Create camera and lamp
     target = utils.target((w/2, h/2, d*3/4))
     utils.lamp((w + 10, -20, 50), target=target, type='SUN')
-    utils.camera((3/4 * w, -1/2 * h, 50), target = target, type='ORTHO', ortho_scale=w*1.5)
+    utils.camera((3/4 * w, -30, 50), target = target, type='ORTHO', ortho_scale=w*1.5)
     
     # update scene
     bpy.context.scene.update()
@@ -265,4 +314,4 @@ if __name__ == '__main__':
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    utils.renderToFolder('rendering', 'funky_cover', 2400/3, 3150/3)
+    utils.renderToFolder('rendering', 'funky_cover', 2400/2, 3150/2)
