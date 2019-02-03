@@ -160,7 +160,7 @@ def draw_column(data, row_infos, x = 1, palette = "benchmark", geom = geom_rect)
         
     return width
 
-def draw_group(x, rowgroup_infos, width, height, palette):
+def draw_group(x, rowgroup_infos, width, height, palette, b = 0):
     # create mesh
     bm = bmesh.new()
     
@@ -208,7 +208,7 @@ def draw_group(x, rowgroup_infos, width, height, palette):
         bm.verts.new([0, y, 100])
     ])
     
-    obj = create_object(bm, x = x)
+    obj = create_object(bm, x = x, y = b, z = -b)
     
     # add color
     color = palette[np.int(np.floor(len(palette)/4))]
@@ -219,36 +219,56 @@ def draw_group(x, rowgroup_infos, width, height, palette):
     obj.data.materials.append(mat)
     
 def draw_experiment_label(experiment_info):
+    # define some positions and parameters
     x = experiment_info["x"] + experiment_info["width"]/2
-    y = -1
-    z = -1
+    y = -0.51
+    z = -2
     width = experiment_info["width"]
-    depth = 1
+    depth = 2
+    extrusion = 1
     
-    # draw text
+    # add text
     bpy.ops.object.text_add()
     obj = bpy.context.object
     obj.data.body = experiment_info["experiment"]
     obj.data.align_x = "CENTER"
-    obj.location = Vector((x, y-0.5, z))
+    obj.data.align_y = "CENTER"
+    obj.data.edit_format.use_bold = True
+    obj.location = Vector((x, y-extrusion-0.05, z))
     obj.rotation_euler = Vector((np.pi/2, 0, 0))
+    obj.data.size = 1.2
+    
+    color = palettes[experiment_info["palette"]][0]
+    
+    # text color
+    mat = bpy.data.materials.new('Material')
+    mat.diffuse_color = color
+    mat.diffuse_intensity = 0.4
+    obj.data.materials.append(mat)
     
     # draw box
     bm = bmesh.new()
-    bm.faces.new([
+    face = bm.faces.new([
         bm.verts.new([x - width/2, y, z - depth/2]),
         bm.verts.new([x + width/2, y, z - depth/2]),
         bm.verts.new([x + width/2, y, z + depth/2]),
         bm.verts.new([x - width/2, y, z + depth/2])
     ])
     
+    # extrude
+    bmesh.ops.recalc_face_normals(bm, faces=[face])
+    r = bmesh.ops.extrude_discrete_faces(bm, faces=[face])
+    f = r['faces'][0]
+    bmesh.ops.translate(bm, vec=Vector((0, -extrusion, 0)), verts=f.verts)
+    
     obj = create_object(bm)
     
-    color = [0,0,0]
+    # box color
+    color = [1,1,1]
     
     mat = bpy.data.materials.new('Material')
     mat.diffuse_color = color
-    mat.diffuse_intensity = 0.4
+    mat.diffuse_intensity = 0.7
     obj.data.materials.append(mat)
     
     return obj
@@ -269,8 +289,10 @@ if __name__ == '__main__':
 
     # Remove all elements
     reset()
+
+    bpy.data.worlds["World"].horizon_color = [0.04, 0.04, 0.04]
     
-    # print columns
+    # plot columns
     w = column_infos.x.iloc[-1] + column_infos.width.iloc[-1] # width of data
     h = data.shape[0]
     d = rowgroup_infos.z.iloc[-1]
@@ -285,7 +307,7 @@ if __name__ == '__main__':
         
         draw_column(data_column, row_infos, x, palette = palette, geom = geom)
     
-    # plot groups
+    # plot group steps
     for i, group_info in group_infos.iterrows():
         ""
         draw_group(
@@ -296,14 +318,23 @@ if __name__ == '__main__':
             palettes[group_info["palette"]]
         )
     
+    # plot background steps
+    draw_group(
+        -100,
+        rowgroup_infos,
+        200,
+        h,
+        [[0.15, 0.15, 0.15]],
+        b = 0.01
+    )
+    
     # plot experiment labels
     for i, experiment_info in experiment_infos.iterrows():
-        ""
-        #draw_experiment_label(experiment_info)
+        draw_experiment_label(experiment_info)
 
     
     # Create camera and lamp
-    target = utils.target((w/2, h/2, d*3/4))
+    target = utils.target((w/2, h/2, d*3.4/4))
     utils.lamp((w + 10, -20, 50), target=target, type='SUN')
     utils.camera((3/4 * w, -30, 50), target = target, type='ORTHO', ortho_scale=w*1.5)
     
@@ -314,4 +345,4 @@ if __name__ == '__main__':
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    utils.renderToFolder('rendering', 'funky_cover', 2400/2, 3150/2)
+    utils.renderToFolder('rendering', 'funky_cover', 2400/1.5, 3150/1.5)
