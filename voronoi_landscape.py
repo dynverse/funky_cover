@@ -291,11 +291,21 @@ def reset():
         #material.user_clear()
         #bpy.data.materials.remove(material)
 
+def use_cuda():
+    prefs = bpy.context.user_preferences.addons['cycles'].preferences
+    prefs.compute_device_type = 'CUDA'
+    prefs.compute_device = 'CUDA_0'
+
+    bpy.ops.wm.save_userpref()
+
 if __name__ == '__main__':
     print(__file__)
 
     # Remove all elements
     reset()
+    
+    # use cuda
+    use_cuda()
 
     bpy.data.worlds["World"].horizon_color = [0.04, 0.04, 0.04]
     
