@@ -363,6 +363,14 @@ if __name__ == '__main__':
     # target = utils.target((w/2, h/2, d*1/2))
     # utils.camera((6/10 * w, -30, 50), target = target, lens = 20)
     
+    # enable indirect lighting
+    bpy.data.worlds["World"].light_settings.use_indirect_light = True
+    bpy.data.worlds["World"].light_settings.indirect_bounces = 2
+    
+    # set to approximate gather instead of raytrace, to enable indirect light
+    bpy.data.worlds["World"].light_settings.gather_method = "APPROXIMATE"
+    bpy.data.worlds["World"].light_settings.passes = 4
+
     # update scene
     bpy.context.scene.update()
 
