@@ -10,7 +10,7 @@ import os
 
 import json
 
-font = bpy.data.fonts.load(filepath = os.path.abspath("/home/wouters/thesis/projects/dyndocs/funky_cover/design/hind-bold.ttf"))
+font = bpy.data.fonts.load(filepath = os.path.abspath("design/hind-bold.ttf"))
 
 print(font)
 
