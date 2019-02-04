@@ -346,8 +346,8 @@ if __name__ == '__main__':
     )
     
     # plot experiment labels
-    for i, experiment_info in experiment_infos.iterrows():
-        draw_experiment_label(experiment_info)
+    # for i, experiment_info in experiment_infos.iterrows():
+    #    draw_experiment_label(experiment_info)
 
     
     # Create lamp
