@@ -6,8 +6,13 @@ from random import random
 from mathutils import Vector, Matrix
 import colorsys
 import utils
+import os
 
 import json
+
+font = bpy.data.fonts.load(filepath = os.path.abspath("/home/wouters/thesis/projects/dyndocs/funky_cover/design/hind-bold.ttf"))
+
+print(font)
 
 # load in dynbenchmark data
 column_infos = pd.read_csv("data/column_infos.csv")
@@ -223,6 +228,7 @@ def draw_experiment_label(experiment_info):
     x = experiment_info["x"] + experiment_info["width"]/2
     y = -0.51
     z = -2
+    z_text_offset = 0.5
     width = experiment_info["width"]
     depth = 2
     extrusion = 1
@@ -230,13 +236,14 @@ def draw_experiment_label(experiment_info):
     # add text
     bpy.ops.object.text_add()
     obj = bpy.context.object
+    obj.data.font = font
     obj.data.body = experiment_info["experiment"]
     obj.data.align_x = "CENTER"
     obj.data.align_y = "CENTER"
     obj.data.edit_format.use_bold = True
-    obj.location = Vector((x, y-extrusion-0.05, z))
+    obj.location = Vector((x, y-extrusion-0.05, z+z_text_offset))
     obj.rotation_euler = Vector((np.pi/2, 0, 0))
-    obj.data.size = 1.2
+    obj.data.size = 1.7
     
     color = palettes[experiment_info["palette"]][0]
     
@@ -335,7 +342,7 @@ if __name__ == '__main__':
     
     # Create lamp
     target = utils.target((2/3 * w, h/2, d*3.4/4))
-    utils.lamp((w + 10, -20, 50), target=target, type='SUN')
+    utils.lamp((w + 10, -20, 50), target=target, type='SUN', shadow = True)
 
     # Choose either camera
     # orthographic camera
@@ -353,4 +360,4 @@ if __name__ == '__main__':
     utils.setAmbientOcclusion(samples=10)
 
     # Render scene
-    utils.renderToFolder('rendering', 'funky_cover', 2400/3, 3150/3)
+    utils.renderToFolder('rendering', 'funky_cover', 8.5*300, 11*300)

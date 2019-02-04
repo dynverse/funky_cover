@@ -57,7 +57,7 @@ def camera(origin, target=None, lens=35, clip_start=0.1, clip_end=200, type='PER
     return obj
 
 
-def lamp(origin, type='POINT', energy=1, color=(1,1,1), target=None):
+def lamp(origin, type='POINT', energy=1, color=(1,1,1), target=None, shadow = False):
     # Lamp types: 'POINT', 'SUN', 'SPOT', 'HEMI', 'AREA'
     print('createLamp called')
     bpy.ops.object.add(type='LAMP', location=origin)
@@ -65,6 +65,10 @@ def lamp(origin, type='POINT', energy=1, color=(1,1,1), target=None):
     obj.data.type = type
     obj.data.energy = energy
     obj.data.color = color
+    
+    if shadow:
+        obj.data.shadow_method = "RAY_SHADOW"
+        obj.data.shadow_color = [0.5, 0.5, 0.5]
 
     if target: trackToConstraint(obj, target)
     return obj
