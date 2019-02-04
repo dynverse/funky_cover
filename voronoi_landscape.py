@@ -352,7 +352,7 @@ if __name__ == '__main__':
     
     # Create lamp
     target = utils.target((2/3 * w, h/2, d*3.4/4))
-    utils.lamp((w + 10, -20, 50), target=target, type='SUN', shadow = True)
+    utils.lamp((w + 10, 20, 80), target=target, type='SUN', shadow = True)
 
     # Choose either camera
     # orthographic camera
