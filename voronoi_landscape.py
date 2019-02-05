@@ -291,21 +291,11 @@ def reset():
         #material.user_clear()
         #bpy.data.materials.remove(material)
 
-def use_cuda():
-    prefs = bpy.context.user_preferences.addons['cycles'].preferences
-    prefs.compute_device_type = 'CUDA'
-    prefs.compute_device = 'CUDA_0'
-
-    bpy.ops.wm.save_userpref()
-
 if __name__ == '__main__':
     print(__file__)
 
     # Remove all elements
     reset()
-    
-    # use cuda
-    use_cuda()
 
     bpy.data.worlds["World"].horizon_color = [0.04, 0.04, 0.04]
     
@@ -347,12 +337,15 @@ if __name__ == '__main__':
     
     # plot experiment labels
     # for i, experiment_info in experiment_infos.iterrows():
-    #    draw_experiment_label(experiment_info)
+    #     draw_experiment_label(experiment_info)
 
     
     # Create lamp
     target = utils.target((2/3 * w, h/2, d*3.4/4))
-    utils.lamp((w + 10, 20, 80), target=target, type='SUN', shadow = True)
+    lamp = utils.lamp((w + 10, -20, 50), target=target, type='AREA', shadow = True)
+    lamp.data.distance = 0.02
+    lamp.data.energy = 0.0001
+    lamp.scale = [100, 100, 1]
 
     # Choose either camera
     # orthographic camera
@@ -363,19 +356,11 @@ if __name__ == '__main__':
     # target = utils.target((w/2, h/2, d*1/2))
     # utils.camera((6/10 * w, -30, 50), target = target, lens = 20)
     
-    # enable indirect lighting
-    bpy.data.worlds["World"].light_settings.use_indirect_light = True
-    bpy.data.worlds["World"].light_settings.indirect_bounces = 2
-    
-    # set to approximate gather instead of raytrace, to enable indirect light
-    bpy.data.worlds["World"].light_settings.gather_method = "APPROXIMATE"
-    bpy.data.worlds["World"].light_settings.passes = 4
-
     # update scene
     bpy.context.scene.update()
 
     # Enable ambient occlusion
-    utils.setAmbientOcclusion(samples=10)
+    utils.setAmbientOcclusion(samples=30)
 
     # Render scene
     utils.renderToFolder('rendering', 'funky_cover', 8.5*300, 11*300)
