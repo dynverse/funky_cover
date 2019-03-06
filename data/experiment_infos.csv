@@ -1,6 +1,7 @@
-experiment,width,x,palette
-Summary,20,0,overall
-Accuracy,21,21,benchmark
-Scalability,11,43,scaling
-Stability,4,55,stability
-Usability,6,60,qc
+experiment,w,x,palette,color
+Method,1,0,overall,#000000
+Summary,20,2,overall,#000000
+Accuracy,21,23,benchmark,#011636
+Scalability,11,45,scaling,#CB181D
+Stability,4,57,stability,#EC7014
+Usability,6,62,qc,#00250F

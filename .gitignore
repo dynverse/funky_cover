@@ -1,3 +1,4 @@
 design/mockup*
 *.pyc
 *.blend1
+*__pycache__

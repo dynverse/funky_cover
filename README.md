@@ -1,7 +1,15 @@
-# funky_cover
+# A 3D version of the funky heatmap
+
+## Cover
+
+## Animation
 
 Open with `blend funky_cover.blend`
 
-Or render with `sh blend.sh`, render can be found in `rendering/funky_cover.png`
+Run the script, this will open an ipython in the command line from which you opened blender
 
-For quick rendering, comment out the `ambient_occlusion` line at the end of `voronoi_landscape.py`
+Now run init.py in this notebook
+
+Now you can run any script using `run('...')`.
+
+You can do a quick rendering using `render.test_render_animation()`
